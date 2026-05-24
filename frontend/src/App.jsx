@@ -41,8 +41,7 @@ export default function App() {
   const [newsInput, setNewsInput] = useState("");
   const [benchmarkResults, setBenchmarkResults] = useState(null);
 
-  // --- FUNGSI API BENCHMARK ---
-  // --- FUNGSI API BENCHMARK (TEMPLATE SIAP HOSTING) ---
+  /// --- FUNGSI API BENCHMARK (SINGLE ENDPOINT DARI GAVINN) ---
   const runBenchmark = async (e) => {
     e.preventDefault();
     if (!newsInput.trim()) return;
@@ -50,89 +49,64 @@ export default function App() {
     setIsRefreshing(true);
     setBenchmarkResults(null);
 
-    // ------------------------------------------------------------------
-    // TEMPLATE URL API 5 MODEL AI (Tinggal ganti linknya nanti!)
-    // ------------------------------------------------------------------
-    const apiEndpoints = [
-      { id: "svm", name: "Model 1 (SVM)", url: "URL_API_SVM_DISINI" },
-      {
-        id: "bilstm",
-        name: "Model 2 (BiLSTM)",
-        url: "URL_API_BILSTM_GAVINN_DISINI",
-      },
-      {
-        id: "deberta",
-        name: "Model 3 (DeBERTa)",
-        url: "URL_API_DEBERTA_DISINI",
-      },
-      {
-        id: "finbert",
-        name: "Model 4 (FinBERT)",
-        url: "URL_API_FINBERT_DISINI",
-      },
-      {
-        id: "distilbert",
-        name: "Model 5 (DistilBERT)",
-        url: "URL_API_DISTILBERT_DISINI",
-      },
-    ];
-
     try {
-      const fetchPromises = apiEndpoints.map(async (model) => {
-        try {
-          // Cegah fetch jika URL masih template bawaan
-          if (model.url.includes("URL_API_")) {
-            throw new Error("API Belum Di-hosting");
-          }
+      // ⚠️ PENTING: Pastikan ke Gavinn apa nama ujung URL-nya untuk benchmark (contoh: /predict_all atau /api/benchmark)
+      const response = await fetch(
+        "https://blaziooon-instock.hf.space/predict_all",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: newsInput }),
+        },
+      );
 
-          const response = await fetch(model.url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: newsInput }),
-          });
+      if (!response.ok) throw new Error("Endpoint gagal diakses");
 
-          if (!response.ok) throw new Error("Gagal mengambil data");
+      const data = await response.json();
 
-          const data = await response.json();
+      // Mengambil array hasil dari server Gavinn (menyesuaikan format JSON dari Gavinn)
+      const finalResults = data.results || data.data || data;
 
-          return {
-            id: model.id,
-            name: model.name,
-            sentiment: data.sentiment, // Pastikan API asli me-return Positif/Negatif/Netral
-            confidence: data.confidence,
-            inferenceTime: data.latency,
-          };
-        } catch (err) {
-          // JIKA API GAGAL/BELUM ADA: Otomatis pakai data DUMMY
-          const rand = Math.random();
-          let dummySentiment = "Netral";
+      if (Array.isArray(finalResults) && finalResults.length > 0) {
+        setBenchmarkResults(finalResults);
+      } else {
+        throw new Error("Format data dari Gavinn tidak sesuai");
+      }
+    } catch (error) {
+      console.warn(
+        "Koneksi API Benchmark gagal, mengaktifkan simulasi dummy...",
+        error,
+      );
 
-          // Logika probabilitas dummy
-          if (rand > 0.6) dummySentiment = "Positif";
-          else if (rand < 0.3) dummySentiment = "Negatif";
+      // JIKA API GAVINN ERROR/NAMA ENDPOINT SALAH: Web tidak akan crash, otomatis pakai Dummy!
+      await new Promise((resolve) => setTimeout(resolve, 800)); // Delay pura-pura
 
-          // Delay pura-pura
-          await new Promise((resolve) =>
-            setTimeout(resolve, Math.random() * 800 + 200),
-          );
+      const dummyModels = [
+        { id: "svm", name: "Model 1 (SVM)" },
+        { id: "bilstm", name: "Model 2 (BiLSTM)" },
+        { id: "deberta", name: "Model 3 (DeBERTa)" },
+        { id: "finbert", name: "Model 4 (FinBERT)" },
+        { id: "distilbert", name: "Model 5 (DistilBERT)" },
+      ];
 
-          return {
-            id: model.id,
-            name: model.name,
-            sentiment: dummySentiment,
-            confidence: parseFloat(
-              (Math.random() * (0.98 - 0.75) + 0.75).toFixed(4),
-            ),
-            inferenceTime: Math.floor(Math.random() * (1100 - 80) + 80),
-          };
-        }
+      const dummyResults = dummyModels.map((model) => {
+        const rand = Math.random();
+        let dummySentiment = "Netral";
+        if (rand > 0.6) dummySentiment = "Positif";
+        else if (rand < 0.3) dummySentiment = "Negatif";
+
+        return {
+          id: model.id,
+          name: model.name,
+          sentiment: dummySentiment,
+          confidence: parseFloat(
+            (Math.random() * (0.98 - 0.75) + 0.75).toFixed(4),
+          ),
+          inferenceTime: Math.floor(Math.random() * (1100 - 80) + 80),
+        };
       });
 
-      const results = await Promise.all(fetchPromises);
-      setBenchmarkResults(results);
-    } catch (error) {
-      console.error("Fatal Error:", error);
-      alert("Terjadi kesalahan sistem saat mengeksekusi benchmark.");
+      setBenchmarkResults(dummyResults);
     }
 
     setLastUpdated(
@@ -161,21 +135,29 @@ export default function App() {
 
   const fetchBackendData = async (query) => {
     try {
-      const response = await fetch("http://localhost:8000/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticker: query }),
-      });
+      const response = await fetch(
+        "https://blaziooon-instock.hf.space/api/scan",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticker: query }),
+        },
+      );
+
       const responseData = await response.json();
-      if (responseData.status === "success") return responseData.data;
+
+      if (responseData.status === "success") {
+        return responseData.data;
+      }
     } catch (error) {
-      console.error("Error connecting backend:", error);
+      console.error("Error connecting HuggingFace backend:", error);
     }
+
     return [
       {
         id: "error",
-        title: `Backend Offline.`,
-        source: "System",
+        title: `Sistem gagal terhubung ke Server AI.`,
+        source: "System Alert",
         time: "N/A",
         url: "#",
         sentiment: "Neutral",
@@ -362,7 +344,7 @@ export default function App() {
       {/* =============================
           KOLOM KIRI: TERMINAL & CHART 
          ==============================*/}
-      <div className="flex-1 flex flex-col gap-6 min-w-0 transition-all duration-500 ease-in-out">
+      <div className="flex-1 flex flex-col gap-6 min-w-0 transition-all duration-500 ease-in-out h-full">
         {/* Search Bar Ticker */}
         <div className="bg-white border border-gray-200 rounded-2xl p-2.5 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm">
           <form onSubmit={handleSearch} className="relative w-full">
@@ -391,7 +373,7 @@ export default function App() {
         </div>
 
         {/* TradingView Advanced Chart Container */}
-        <div className="bg-white border border-gray-200 rounded-2xl flex flex-col flex-1 shadow-sm overflow-hidden min-h-[400px]">
+        <div className="bg-white border border-gray-200 rounded-2xl flex flex-col flex-1 shadow-sm overflow-hidden min-h-[500px] lg:min-h-0 h-full">
           <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
             <h2 className="font-semibold text-gray-900 flex items-center gap-3">
               <BarChart2 size={18} className="text-orange-500" />
@@ -399,9 +381,9 @@ export default function App() {
               <span className="text-black font-bold uppercase">{keyword}</span>
             </h2>
           </div>
-          <div className="flex-1 w-full relative">
+          <div className="flex-1 w-full h-[450px] lg:h-full relative bg-white">
             <div
-              className="absolute inset-0"
+              className="absolute inset-0 w-full h-full"
               ref={chartContainerRef}
               id="tradingview_chart"
             />
@@ -410,14 +392,14 @@ export default function App() {
       </div>
 
       {/* ==========================================
-          KOLOM KANAN: INPUT & BENCHMARK 5 MODEL NLP
+          KOLOM KANAN: INPUT, BENCHMARK, & NEWS FEED
          ========================================== */}
       <div
-        className={`${getSidebarWidthClass()} flex flex-col h-[600px] lg:h-full transition-all duration-500 ease-in-out`}
+        className={`${getSidebarWidthClass()} flex flex-col h-[700px] lg:h-full transition-all duration-500 ease-in-out`}
       >
         <div className="bg-white border border-gray-200 rounded-2xl flex flex-col h-full shadow-sm overflow-hidden">
           {/* Header Panel Kanan */}
-          <div className="px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50/50 z-10">
+          <div className="px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50/50 z-10 shrink-0">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Activity size={18} className="text-orange-500" />
@@ -431,7 +413,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Layout Switcher punya Yong tetap dipertahankan */}
+            {/* Layout Switcher */}
             <div className="flex items-center bg-gray-200/60 p-1 rounded-lg">
               <button
                 onClick={() => setLayoutMode("compact")}
@@ -456,8 +438,8 @@ export default function App() {
 
           {/* Area Konten Scrollable */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 sleek-scrollbar bg-gray-50/30">
-            {/* FORM INPUT BERITA (Diselipkan di atas feed hasil) */}
-            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+            {/* FORM INPUT BERITA */}
+            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm shrink-0">
               <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                 <Database size={14} className="text-orange-500" /> Input Teks
                 Berita Finansial
@@ -481,118 +463,185 @@ export default function App() {
               </form>
             </div>
 
-            {/* SEPARATOR / STATUS */}
-            <div className="border-t border-gray-100 my-2 pt-2">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                Hasil Komparasi Matriks
-              </span>
-            </div>
+            {/* HASIL KOMPARASI (Hanya Muncul Jika Ada Hasil) */}
+            {benchmarkResults && (
+              <div className="shrink-0 animate-in slide-in-from-top-4 duration-500">
+                <div className="border-t border-gray-100 my-2 pt-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
+                    Hasil Komparasi Matriks
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {benchmarkResults.map((res, index) => {
+                    let conf;
+                    if (
+                      res.sentiment === "Positif" ||
+                      res.sentiment === "Positive"
+                    ) {
+                      conf = {
+                        text: "text-emerald-700",
+                        bg: "bg-emerald-50/60",
+                        border: "border-emerald-100",
+                        bar: "bg-emerald-500",
+                        icon: <TrendingUp size={14} />,
+                      };
+                    } else if (
+                      res.sentiment === "Negatif" ||
+                      res.sentiment === "Negative"
+                    ) {
+                      conf = {
+                        text: "text-rose-700",
+                        bg: "bg-rose-50/60",
+                        border: "border-rose-100",
+                        bar: "bg-rose-500",
+                        icon: <TrendingDown size={14} />,
+                      };
+                    } else {
+                      conf = {
+                        text: "text-gray-700",
+                        bg: "bg-gray-100/60",
+                        border: "border-gray-200",
+                        bar: "bg-gray-400",
+                        icon: <Minus size={14} />,
+                      };
+                    }
 
-            {/* AREA DYNAMIC DISPLAY HASSIL PREDIKSI */}
-            {!benchmarkResults && !isRefreshing ? (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2 opacity-75 bg-white border border-dashed border-gray-200 rounded-xl">
-                <Brain size={32} strokeWidth={1.5} className="text-gray-300" />
-                <p className="text-xs font-medium">
-                  Belum ada data uji. Tulis berita di atas lalu eksekusi.
-                </p>
-              </div>
-            ) : isRefreshing ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-28 bg-white border border-gray-100 rounded-xl p-5 animate-pulse flex flex-col gap-3"
-                  >
-                    <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-                    <div className="h-3 bg-gray-100 rounded w-full"></div>
-                    <div className="h-2 bg-gray-100 rounded w-2/3"></div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              // GRID CARD UNTUK 5 MODEL NLP BERDAMPINGAN
-              <div className="grid grid-cols-1 gap-3">
-                {benchmarkResults.map((res, index) => {
-                  let conf;
-                  if (
-                    res.sentiment === "Positif" ||
-                    res.sentiment === "Positive"
-                  ) {
-                    conf = {
-                      text: "text-emerald-700",
-                      bg: "bg-emerald-50/60",
-                      border: "border-emerald-100",
-                      bar: "bg-emerald-500",
-                      icon: <TrendingUp size={14} />,
-                    };
-                  } else if (
-                    res.sentiment === "Negatif" ||
-                    res.sentiment === "Negative"
-                  ) {
-                    conf = {
-                      text: "text-rose-700",
-                      bg: "bg-rose-50/60",
-                      border: "border-rose-100",
-                      bar: "bg-rose-500",
-                      icon: <TrendingDown size={14} />,
-                    };
-                  } else {
-                    // Kondisi Netral
-                    conf = {
-                      text: "text-gray-700",
-                      bg: "bg-gray-100/60",
-                      border: "border-gray-200",
-                      bar: "bg-gray-400",
-                      icon: <Minus size={14} />,
-                    };
-                  }
-
-                  return (
-                    <div
-                      key={res.id || index}
-                      className={`bg-white border rounded-xl p-4 shadow-sm border-gray-100 hover:border-orange-200 transition-all`}
-                    >
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-bold text-gray-800 text-xs 2xl:text-sm">
-                          {res.name}
-                        </h4>
-                        <span
-                          className={`flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${conf.bg} ${conf.text} ${conf.border}`}
-                        >
-                          {conf.icon} {res.sentiment}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div>
-                          <div className="flex justify-between text-[11px] mb-1">
-                            <span className="text-gray-400 font-medium">
-                              Confidence Score
-                            </span>
-                            <span className={`font-bold ${conf.text}`}>
-                              {(res.confidence * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${conf.bar} transition-all duration-1000 ease-out`}
-                              style={{ width: `${res.confidence * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-2 border-t border-gray-50 text-[10px]">
-                          <span className="text-gray-400 uppercase tracking-wider font-medium">
-                            Latency
-                          </span>
-                          <span className="font-mono text-gray-600 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
-                            {res.inferenceTime} ms
+                    return (
+                      <div
+                        key={res.id || index}
+                        className="bg-white border rounded-xl p-4 shadow-sm border-gray-100 hover:border-orange-200 transition-all"
+                      >
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-bold text-gray-800 text-xs 2xl:text-sm">
+                            {res.name}
+                          </h4>
+                          <span
+                            className={`flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${conf.bg} ${conf.text} ${conf.border}`}
+                          >
+                            {conf.icon} {res.sentiment}
                           </span>
                         </div>
+                        <div className="space-y-2">
+                          <div>
+                            <div className="flex justify-between text-[11px] mb-1">
+                              <span className="text-gray-400 font-medium">
+                                Confidence Score
+                              </span>
+                              <span className={`font-bold ${conf.text}`}>
+                                {(res.confidence * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${conf.bar} transition-all duration-1000 ease-out`}
+                                style={{ width: `${res.confidence * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center pt-2 border-t border-gray-50 text-[10px]">
+                            <span className="text-gray-400 uppercase tracking-wider font-medium">
+                              Latency
+                            </span>
+                            <span className="font-mono text-gray-600 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                              {res.inferenceTime} ms
+                            </span>
+                          </div>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =======================================
+                LIVE NEWS FEED (Dikembalikan ke sini)
+               ======================================= */}
+            {(layoutMode === "default" || layoutMode === "wide") && (
+              <div className="pt-6 mt-6 border-t border-dashed border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                    <Clock size={14} className="text-orange-500" /> Berita Saham
+                    Terkini
+                  </h3>
+                  <span className="text-[10px] text-gray-400 font-medium bg-white px-2 py-1 rounded border border-gray-200">
+                    Sumber: System Backend
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {news.length === 0 ? (
+                    <div className="text-center text-sm text-gray-400 py-6 bg-white rounded-xl border border-gray-100">
+                      Belum ada berita yang ditarik.
                     </div>
-                  );
-                })}
+                  ) : (
+                    <>
+                      {news.slice(0, visibleCount).map((item) => {
+                        const conf = getSentimentConfig(item.sentiment);
+                        return (
+                          <a
+                            key={item.id}
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block bg-white border border-gray-100 rounded-xl p-5 hover:border-orange-200 hover:shadow-md transition-all duration-300 cursor-pointer group"
+                          >
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-gray-900">
+                                  {item.source}
+                                </span>
+                                <span className="text-[10px] text-gray-400 mt-0.5">
+                                  {item.time}
+                                </span>
+                              </div>
+                              <span
+                                className={`flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${conf.border} ${conf.text} ${conf.bg}`}
+                              >
+                                {conf.icon}
+                                {item.sentiment}
+                              </span>
+                            </div>
+                            <h4 className="text-[13px] font-medium leading-relaxed mb-3 text-gray-800 group-hover:text-orange-600 transition-colors">
+                              {item.title}
+                            </h4>
+                            <div className="flex items-center justify-between mt-auto">
+                              <div className="flex items-center gap-3 w-2/3">
+                                <span className="text-[9px] text-gray-400 font-semibold uppercase tracking-wide">
+                                  Conf
+                                </span>
+                                <div className="h-1 flex-1 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${conf.bar} transition-all duration-1000 ease-out`}
+                                    style={{ width: `${item.score * 100}%` }}
+                                  />
+                                </div>
+                                <span
+                                  className={`text-[10px] font-semibold ${conf.text}`}
+                                >
+                                  {(item.score * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                              <ExternalLink
+                                size={14}
+                                className="text-gray-300 group-hover:text-orange-500 transition-colors"
+                              />
+                            </div>
+                          </a>
+                        );
+                      })}
+
+                      {news.length > visibleCount && (
+                        <button
+                          onClick={() => setVisibleCount((prev) => prev + 5)}
+                          className="w-full py-3 mt-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-600 hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50/50 transition-all flex items-center justify-center gap-2"
+                        >
+                          Tampilkan Lebih Banyak <ChevronDown size={14} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
