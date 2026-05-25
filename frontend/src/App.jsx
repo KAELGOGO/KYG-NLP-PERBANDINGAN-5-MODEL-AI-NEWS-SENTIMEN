@@ -633,16 +633,30 @@ export default function App() {
                                   {item.time}
                                 </span>
                               </div>
-                              <span
-                                className={`flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${conf.border} ${conf.text} ${conf.bg}`}
-                              >
-                                {conf.icon}
-                                {item.sentiment}
-                              </span>
+
+                              {/* Wrapper Kotak Badge (Sektor & Sentimen) */}
+                              <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5">
+                                {/* Badge Sektor Ekonomi */}
+                                {item.sector && (
+                                  <span className="text-[9px] font-medium bg-gray-50 text-gray-500 px-2 py-0.5 rounded border border-gray-200 whitespace-nowrap">
+                                    {item.sector}
+                                  </span>
+                                )}
+
+                                {/* Badge Sentimen */}
+                                <span
+                                  className={`flex items-center justify-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${conf.border} ${conf.text} ${conf.bg}`}
+                                >
+                                  {conf.icon}
+                                  {item.sentiment}
+                                </span>
+                              </div>
                             </div>
+
                             <h4 className="text-[13px] font-medium leading-relaxed mb-3 text-gray-800 group-hover:text-orange-600 transition-colors">
                               {item.title}
                             </h4>
+
                             <div className="flex items-center justify-between mt-auto">
                               <div className="flex items-center gap-3 w-2/3">
                                 <span className="text-[9px] text-gray-400 font-semibold uppercase tracking-wide">
