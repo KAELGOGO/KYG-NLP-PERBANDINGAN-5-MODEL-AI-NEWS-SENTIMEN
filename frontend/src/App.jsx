@@ -41,7 +41,7 @@ export default function App() {
   const [newsInput, setNewsInput] = useState("");
   const [benchmarkResults, setBenchmarkResults] = useState(null);
 
-  // --- FUNGSI API BENCHMARK REAL (VIA /api/compare GAVINN) ---
+  // --- FUNGSI API BENCHMARK REAL  ---
   const runBenchmark = async (e) => {
     e.preventDefault();
     if (!newsInput.trim()) return;
@@ -50,13 +50,12 @@ export default function App() {
     setBenchmarkResults(null);
 
     try {
-      // 1. Tembak ke endpoint /api/compare milik Gavinn
       const response = await fetch(
         "https://blaziooon-instock.hf.space/api/compare",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: newsInput }), // Menggunakan 'text' sesuai request di app.py Gavinn
+          body: JSON.stringify({ text: newsInput }),
         },
       );
 
@@ -65,7 +64,6 @@ export default function App() {
       const data = await response.json();
 
       if (data.status === "success" && data.breakdown) {
-        // 2. Mapping JSON dari Gavinn menjadi Array untuk UI kita
         const formattedResults = [
           {
             id: "svm",
@@ -133,7 +131,6 @@ export default function App() {
             confidence: parseFloat(
               data.breakdown["Ensemble_Final"].confidence.toFixed(4),
             ),
-            // Ambil total latency dari server Gavinn (hilangkan huruf 's' lalu ubah ke ms)
             inferenceTime: parseInt(
               parseFloat(data.latency.replace("s", "")) * 1000,
             ),
