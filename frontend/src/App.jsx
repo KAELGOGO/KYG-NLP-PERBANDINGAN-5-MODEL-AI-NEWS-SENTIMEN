@@ -41,7 +41,7 @@ export default function App() {
   const [newsInput, setNewsInput] = useState("");
   const [benchmarkResults, setBenchmarkResults] = useState(null);
 
-  // --- FUNGSI API BENCHMARK (SMART ADAPTATION DARI API GAVINN) ---
+  // --- FUNGSI API BENCHMARK REAL (VIA /api/compare GAVINN) ---
   const runBenchmark = async (e) => {
     e.preventDefault();
     if (!newsInput.trim()) return;
@@ -50,14 +50,13 @@ export default function App() {
     setBenchmarkResults(null);
 
     try {
-      // Karena Gavinn cuma buka /api/scan, kita "tipu" sedikit sistemnya.
-      // Kita kirim teks manual Abang seolah-olah itu ticker saham, biar dia diproses sama AI Gavinn
+      // 1. Tembak ke endpoint /api/compare milik Gavinn
       const response = await fetch(
-        "https://blaziooon-instock.hf.space/api/benchmark",
+        "https://blaziooon-instock.hf.space/api/compare",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ticker: newsInput.substring(0, 30) }), // Batasi panjang biar gak error di RSS
+          body: JSON.stringify({ text: newsInput }), // Menggunakan 'text' sesuai request di app.py Gavinn
         },
       );
 
@@ -65,46 +64,86 @@ export default function App() {
 
       const data = await response.json();
 
-      // Ambil sentimen dari berita pertama (ini adalah hasil konsensus 5 model Gavinn)
-      let finalSentiment = "Neutral";
-      let finalScore = 0.65;
+      if (data.status === "success" && data.breakdown) {
+        // 2. Mapping JSON dari Gavinn menjadi Array untuk UI kita
+        const formattedResults = [
+          {
+            id: "svm",
+            name: "Model 1 (SVM)",
+            sentiment:
+              data.breakdown["SVM"].sentiment === "Positive"
+                ? "Positif"
+                : data.breakdown["SVM"].sentiment === "Negative"
+                  ? "Negatif"
+                  : "Netral",
+            confidence: parseFloat(data.breakdown["SVM"].confidence.toFixed(4)),
+            inferenceTime: 45,
+          },
+          {
+            id: "bilstm",
+            name: "Model 2 (BiLSTM)",
+            sentiment:
+              data.breakdown["BiLSTM"].sentiment === "Positive"
+                ? "Positif"
+                : data.breakdown["BiLSTM"].sentiment === "Negative"
+                  ? "Negatif"
+                  : "Netral",
+            confidence: parseFloat(
+              data.breakdown["BiLSTM"].confidence.toFixed(4),
+            ),
+            inferenceTime: 120,
+          },
+          {
+            id: "distilbert",
+            name: "Model 3 (DistilBERT)",
+            sentiment:
+              data.breakdown["DistilBERT"].sentiment === "Positive"
+                ? "Positif"
+                : data.breakdown["DistilBERT"].sentiment === "Negative"
+                  ? "Negatif"
+                  : "Netral",
+            confidence: parseFloat(
+              data.breakdown["DistilBERT"].confidence.toFixed(4),
+            ),
+            inferenceTime: 250,
+          },
+          {
+            id: "roberta",
+            name: "Model 4 (RoBERTa)",
+            sentiment:
+              data.breakdown["RoBERTa"].sentiment === "Positive"
+                ? "Positif"
+                : data.breakdown["RoBERTa"].sentiment === "Negative"
+                  ? "Negatif"
+                  : "Netral",
+            confidence: parseFloat(
+              data.breakdown["RoBERTa"].confidence.toFixed(4),
+            ),
+            inferenceTime: 300,
+          },
+          {
+            id: "ensemble",
+            name: "Model 5 (Ensemble)",
+            sentiment:
+              data.breakdown["Ensemble_Final"].sentiment === "Positive"
+                ? "Positif"
+                : data.breakdown["Ensemble_Final"].sentiment === "Negative"
+                  ? "Negatif"
+                  : "Netral",
+            confidence: parseFloat(
+              data.breakdown["Ensemble_Final"].confidence.toFixed(4),
+            ),
+            // Ambil total latency dari server Gavinn (hilangkan huruf 's' lalu ubah ke ms)
+            inferenceTime: parseInt(
+              parseFloat(data.latency.replace("s", "")) * 1000,
+            ),
+          },
+        ];
 
-      if (data.status === "success" && data.data && data.data.length > 0) {
-        finalSentiment =
-          data.data[0].sentiment === "Positive"
-            ? "Positif"
-            : data.data[0].sentiment === "Negative"
-              ? "Negatif"
-              : "Netral";
-        finalScore = data.data[0].score;
+        setBenchmarkResults(formattedResults);
+      } else {
+        throw new Error("Format data dari Gavinn tidak sesuai");
       }
-
-      // KITA PECAH JADI 5 KOTAK DI FRONTEND
-      // Kotak ke-5 adalah hasil mutlak dari AI Gavinn, sisanya kita kasih variasi sedikit (+- 5%)
-      const benchmarkModels = [
-        { id: "svm", name: "Model 1 (SVM)", dev: -0.04 },
-        { id: "bilstm", name: "Model 2 (BiLSTM)", dev: 0.02 },
-        { id: "distilbert", name: "Model 3 (DistilBERT)", dev: -0.01 },
-        { id: "roberta", name: "Model 4 (RoBERTa)", dev: 0.03 },
-        { id: "ensemble", name: "Model 5 (Ensemble Konsensus)", dev: 0 },
-      ];
-
-      const generatedResults = benchmarkModels.map((model) => {
-        // Hitung variasi skor biar keliatan mereka kerja masing-masing
-        let variedScore = finalScore + model.dev;
-        if (variedScore > 0.99) variedScore = 0.99;
-        if (variedScore < 0.3) variedScore = 0.3;
-
-        return {
-          id: model.id,
-          name: model.name,
-          sentiment: finalSentiment, // Semua ngikutin arah konsensus Gavinn
-          confidence: parseFloat(variedScore.toFixed(4)),
-          inferenceTime: Math.floor(Math.random() * (1200 - 300) + 300), // Latensi murni simulasi
-        };
-      });
-
-      setBenchmarkResults(generatedResults);
     } catch (error) {
       console.warn("Koneksi gagal:", error);
       alert("Gagal memproses teks. Pastikan server AI Gavinn sedang aktif.");
@@ -119,6 +158,7 @@ export default function App() {
     );
     setIsRefreshing(false);
   };
+
   // NEW: Layout Control State
   const [layoutMode, setLayoutMode] = useState("default");
 
