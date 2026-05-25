@@ -78,7 +78,7 @@ export default function App() {
             inferenceTime: 45,
           },
           {
-            id: "bilstm",
+            id: "BiLSTM",
             name: "Model 2 (BiLSTM)",
             sentiment:
               data.breakdown["BiLSTM"].sentiment === "Positive"
@@ -92,7 +92,7 @@ export default function App() {
             inferenceTime: 120,
           },
           {
-            id: "distilbert",
+            id: "DistilBERT",
             name: "Model 3 (DistilBERT)",
             sentiment:
               data.breakdown["DistilBERT"].sentiment === "Positive"
@@ -106,7 +106,7 @@ export default function App() {
             inferenceTime: 250,
           },
           {
-            id: "roberta",
+            id: "RoBERTa",
             name: "Model 4 (RoBERTa)",
             sentiment:
               data.breakdown["RoBERTa"].sentiment === "Positive"
@@ -120,16 +120,16 @@ export default function App() {
             inferenceTime: 300,
           },
           {
-            id: "ensemble",
-            name: "Model 5 (Ensemble)",
+            id: "XLM-RoBERTa",
+            name: "Model 5 (XLM-RoBERTa)",
             sentiment:
-              data.breakdown["Ensemble_Final"].sentiment === "Positive"
+              data.breakdown["XLM-RoBERTa"].sentiment === "Positive"
                 ? "Positif"
-                : data.breakdown["Ensemble_Final"].sentiment === "Negative"
+                : data.breakdown["XLM-RoBERTa"].sentiment === "Negative"
                   ? "Negatif"
                   : "Netral",
             confidence: parseFloat(
-              data.breakdown["Ensemble_Final"].confidence.toFixed(4),
+              data.breakdown["XLM-RoBERTa"].confidence.toFixed(4),
             ),
             inferenceTime: parseInt(
               parseFloat(data.latency.replace("s", "")) * 1000,
