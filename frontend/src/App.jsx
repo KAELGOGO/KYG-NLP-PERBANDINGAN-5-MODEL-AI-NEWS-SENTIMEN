@@ -218,9 +218,9 @@ export default function App() {
             latency: 300,
           },
           {
-            id: "ensemble",
-            name: "Model 5 (Ensemble)",
-            data: data.breakdown["Ensemble_Final"],
+            id: "XLM-RoBERTa",
+            name: "Model 5 (XLM-RoBERTa)",
+            data: data.breakdown["XLM-RoBERTa"],
             latency: parseInt(parseFloat(data.latency.replace("s", "")) * 1000),
           },
         ].map((item) => ({
