@@ -218,14 +218,20 @@ export default function App() {
             latency: 300,
           },
           {
-            id: "XLM-RoBERTa",
+            id: "xlm-roberta",
             name: "Model 5 (XLM-RoBERTa)",
             data: data.breakdown["XLM-RoBERTa"],
+            latency: 350,
+          },
+          {
+            id: "ensemble", // INI KUNCI BIAR UI-NYA JADI ORANYE DAN LEBAR
+            name: "Final Consensus (Ensemble)",
+            data: data.breakdown["Ensemble_Final"],
             latency: parseInt(parseFloat(data.latency.replace("s", "")) * 1000),
           },
         ].map((item) => ({
           ...item,
-          sentiment: item.data.sentiment,
+          sentiment: item.data.sentiment, // Biarkan English ("Positive"/"Negative") biar fungsi warnanya jalan
           confidence: parseFloat(item.data.confidence.toFixed(4)),
         }));
         setBenchmarkResults(formattedResults);
